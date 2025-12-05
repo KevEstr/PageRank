@@ -1,70 +1,100 @@
-![CI](https://github.com/dcadenas/pagerank/actions/workflows/go.yml/badge.svg)
-[![codecov](https://codecov.io/gh/dcadenas/pagerank/graph/badge.svg?token=2N3B1RMAAP)](https://codecov.io/gh/dcadenas/pagerank)
+# PageRank: Implementación Secuencial y Concurrente
 
-pagerank
-========
+Implementación del algoritmo PageRank en Go con versiones secuencial y concurrente, incluyendo sistema de experimentación para análisis de rendimiento.
 
-A Go language [PageRank](http://en.wikipedia.org/wiki/PageRank) implementation.
+![PageRank](http://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/PageRanks-Example.svg/596px-PageRanks-Example.svg.png)
 
-[![](http://upload.wikimedia.org/wikipedia/commons/thumb/f/fb/PageRanks-Example.svg/596px-PageRanks-Example.svg.png)](http://en.wikipedia.org/wiki/PageRank)
+## Autores
 
-Description
------------
-A library to calculate the [PageRank](http://en.wikipedia.org/wiki/PageRank) of a big directed graph. It's intended to be used for big but not huge graphs, as those are better processed with a map-reduce distributed solution.
-This is a port from ruby's [rankable_graph](http://github.com/dcadenas/rankable_graph) gem.
+- Kevin Estrada Del Valle
+- María Cristina Vergara Quinchia
 
-Usage
------
+## Descripción
+
+Este proyecto implementa el algoritmo PageRank para calcular la importancia de nodos en grafos dirigidos. Incluye:
+
+- **Implementación secuencial**: Versión tradicional de un solo hilo
+- **Implementación concurrente**: Versión concurrente con múltiples goroutines
+- **Sistema de experimentación**: Para comparar rendimiento mediante diseño de bloques aleatorizados
+
+## Estructura del Proyecto
+
+```
+pagerank/
+├── pagerank.go                 # Implementación secuencial
+├── pagerank_concurrent.go      # Implementación concurrente
+├── pagerank_concurrent_test.go
+├── cmd/experimento/main.go    # Programa principal de experimentación
+├── experimento/               # Sistema de análisis experimental
+│   ├── tipos.go
+│   ├── generador.go
+│   ├── ejecutor.go
+│   ├── medidor.go
+│   └── analizador.go
+└── resultados_experimento.csv # Resultados de ejecuciones
+```
+
+## Uso
+
+### Instalación
+
+```bash
+git clone https://github.com/KevEstr/PageRank.git
+cd PageRank
+go mod download
+```
+
+### Uso Básico
 
 ```go
 package main
 
 import "github.com/dcadenas/pagerank"
-import "fmt"
 
-func main(){
-  graph := pagerank.New()
-
-  //First we draw our directed graph using the link method which receives as parameters two identifiers.   
-  //The only restriction for the identifiers is that they should be integers.
-  graph.Link(1234, 4312)
-  graph.Link(9876, 4312)
-  graph.Link(4312, 9876)
-  graph.Link(8888, 4312)
-
-  probability_of_following_a_link := 0.85 // The bigger the number, less probability we have to teleport to some random link
-  tolerance := 0.0001 // the smaller the number, the more exact the result will be but more CPU cycles will be needed
-
-  graph.Rank(probability_of_following_a_link, tolerance, func(identifier int, rank float64) {
-    fmt.Println("Node", identifier, "rank is", rank)
-  })
+func main() {
+    // Versión secuencial
+    graph := pagerank.New()
+    graph.Link(1, 2)
+    graph.Link(2, 3)
+    graph.Link(3, 1)
+    
+    graph.Rank(0.85, 0.0001, func(id int, rank float64) {
+        println("Nodo", id, "tiene rank", rank)
+    })
+    
+    // Versión concurrente con 4 workers
+    graphConcurrent := pagerank.NewConcurrentWithWorkers(4)
+    graphConcurrent.Link(1, 2)
+    // ... resto del código igual
 }
 ```
 
-Which outputs
+### Ejecutar Experimentos
 
-    Node 1234 rank is 0.03750000000000001
-    Node 4312 rank is 0.4797515116401361
-    Node 9876 rank is 0.44524848835986397
-    Node 8888 rank is 0.03750000000000001
+```bash
+# Experimento completo con configuración por defecto
+go run cmd/experimento/main.go
 
-This ranks represent the probabilities that a certain node will be visited.
+# Configuración personalizada
+go run cmd/experimento/main.go -replicas 5 -damping 0.85 -tolerance 0.0001
+```
 
-For more examples please refer to the [tests](https://github.com/dcadenas/pagerank/blob/master/pagerank_test.go).
+## Diseño Experimental
 
-Note on Patches/Pull Requests
------------------------------
+El sistema utiliza un diseño de bloques completamente aleatorizados (RCBD) que evalúa:
 
-* Fork the project.
-* Make your feature addition or bug fix.
-* Add tests for it. This is important so I don't break it in a
-  future version unintentionally.
-* Commit.
-* Send me a pull request. Bonus points for topic branches.
+- **Bloques**: Tres tamaños de grafos (20K, 100K, 500K nodos)
+- **Tratamientos**: Secuencial y concurrente con 2, 4, 8 y 16 workers
+- **Métricas**: Tiempo de ejecución, speedup, eficiencia y uso de memoria
 
-Copyright
----------
+Los resultados se exportan a CSV para análisis estadístico.
 
-Author: [Daniel Cadenas](http://danielcadenas.com)
+## Tests
 
-Copyright (c) 2013 [Neo](http://neo.com). See [LICENSE](https://github.com/dcadenas/pagerank/blob/master/LICENSE) for details.
+```bash
+go test -v
+```
+
+## Requisitos
+
+- Go 1.20 o superior
